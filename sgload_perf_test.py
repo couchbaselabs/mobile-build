@@ -72,7 +72,7 @@ def validate_environment():
         remote_user=os.environ["REMOTE_USER"],
         pools_json=os.environ["POOLS_JSON"],
         sg_deploy_type=os.environ["SG_DEPLOY_TYPE"],
-        install_deps_flag=os.environ["INSTALL_DEPS"],
+        install_deps_flag=str_to_bool(os.environ["INSTALL_DEPS"]),
         cluster_config=os.environ["CLUSTER_CONFIG"],
         provision_or_reset=os.environ["PROVISION_OR_RESET"],
         couchbase_server_version=os.environ["COUCHBASE_SERVER_VERSION"],
@@ -215,6 +215,14 @@ def run_sgload_perf_test(cluster_config, remote_user, sgload_num_readers, sgload
         False,
     )
 
+
+def str_to_bool(strval):
+    if strval == 'true':
+        return True
+    elif strval == 'false':
+        return False
+    else:
+        raise Exception("Invalid boolean string value: {}.  Expecting 'true' or 'false'".format(strval))
     
 if __name__ == "__main__":
     main()
