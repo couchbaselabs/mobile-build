@@ -110,30 +110,15 @@ def maybe_setup_ssh_tunnel(remote_user):
     if remote_user != "centos":
         return 
 
-    """ Getting error
-Generating 2sg_1ac_3cbs_2lgs.json
-07:16:16 Traceback (most recent call last):
-07:16:16   File "./sgload_perf_test.py", line 229, in <module>
-07:16:16     main()
-07:16:16   File "./sgload_perf_test.py", line 37, in main
-07:16:16     maybe_setup_ssh_tunnel(env.remote_user)    
-07:16:16   File "./sgload_perf_test.py", line 113, in maybe_setup_ssh_tunnel
-07:16:16     remote_hosts_list = get_remote_hosts_list(RESOURCES_POOL_FILENAME)
-07:16:16   File "/var/jenkins/workspace/sgload-perf-test/utilities/setup_ssh_tunnel.py", line 19, in get_remote_hosts_list
-07:16:16     with open(args.remote_hosts_file) as f:
-07:16:16 NameError: global name 'args' is not defined
-"""
-    
-    # TODO: uncomment and fix
-    # 
-    # remote_hosts_list = get_remote_hosts_list(RESOURCES_POOL_FILENAME)
-    #setup_tunnel(
-    #    target_host="s61103cnt72.sc.couchbase.com",
-    #    target_port="8086",
-    #    remote_hosts_user=remote_user,
-    #    remote_hosts=remote_hosts_list,
-    #    remote_host_port="8086",
-    #)
+    remote_hosts_list = get_remote_hosts_list(RESOURCES_POOL_FILENAME)
+    setup_tunnel(
+        target_host="s61103cnt72.sc.couchbase.com",
+        target_port="8086",
+        remote_hosts_user=remote_user,
+        remote_hosts=remote_hosts_list,
+        remote_host_port="8086",
+    )
+
 
 def maybe_deploy_github_keys(sg_deploy_type):
     """
