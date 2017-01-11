@@ -2,19 +2,32 @@
 
 # This is the Jenkins shell script for running an sgload based performance test
 
+import collections
+import os
+import re
+from libraries.utilities.generate_clusters_from_pool import generate_clusters_from_pool
+from utilities.setup_ssh_tunnel import setup_tunnel
+from utilities.setup_ssh_tunnel import get_remote_hosts_list
 
+# A named tuple to hold all the environment variables (lightweight class without the boilerplate)
+ScriptEnv = collections.namedtuple(
+    'ScriptEnv',
+    'remote_user pools_json',
+)
+
+RESOURCES_POOL_FILENAME="resources/pool.json"
 
 def main():
 
-    validate_environment()
+    script_env = validate_environment()
     
-    create_ansible_config()
+    create_ansible_config(remote_user=script_env.remote_user)
 
-    write_resources_pool_json()
+    write_resources_pool_json(pools_json=script_env.pools_json)
 
-    generate_clusters_from_pool()
-
-    setup_ssh_tunnel()
+    generate_clusters_from_pool(RESOURCES_POOL_FILENAME)
+    
+    maybe_setup_ssh_tunnel(script_env.remote_user)    
 
     set_influx_db_url()
 
@@ -30,51 +43,39 @@ def validate_environment():
     """
     Check for expected env variables
     """
-    pass
+    return ScriptEnv(
+        remote_user=os.environ["REMOTE_USER"],
+        pools_json=os.environ["POOLS_JSON"],
+    )
 
-def create_ansible_config():
-    """
-    ansible_config="ansible.cfg"
-    echo "[defaults]" > $ansible_config
-    echo "remote_user=$REMOTE_USER" >> $ansible_config
-    """
-    pass
+def create_ansible_config(remote_user):
+    # Read in ansible.cfg.example and replace "vagrant" -> remote_user and
+    # write out result to ansible.cfg
+    ansible_cfg_example = open("ansible.cfg.example").read()
+    ansible_cfg = re.sub("vagrant", remote_user, ansible_cfg_example)
+    f = open("ansible.cfg", "w")
+    f.write(ansible_cfg)
+    f.close()
 
-def write_resources_pool_json():
-    """
-    pool_file="resources/pool.json"
+def write_resources_pool_json(pools_json):
+    with open(RESOURCES_POOL_FILENAME, "w") as file:
+        file.write(pools_json)
 
-    echo "Generating $pool_file ..."
-    echo $POOLS_JSON > $pool_file
-    cat $pool_file
-    """
-    pass
+def maybe_setup_ssh_tunnel(remote_user):
 
-def generate_clusters_from_pool():
-    """
-    echo "Generating cluster configs from pool"
-    python libraries/utilities/generate_clusters_from_pool.py
-    cat $CLUSTER_CONFIG
-    """
-    pass
+    # Only want to do this on AWS, where remote_user is centos
+    if remote_user != "centos":
+        return 
 
-def setup_ssh_tunnel():
-    """
-    # If we are using a centos user, that means we are running on AWS.
-    # When running on AWS we have to setup SSH port forwarding to expose
-    # the grafana machine
-    # Also, we need to make sure that the INFLUX target is localhost:8096 to
-    # make sure the the stats are proxied over the tunnel
-    if [ "$REMOTE_USER" == "centos" ]; then
-            python utilities/setup_ssh_tunnel.py --target-host="s61103cnt72.sc.couchbase.com" --target-port="8086" --remote-hosts-user="$REMOTE_USER" --remote-hosts-file="$pool_file" --remote-host-port="8086"
-            export INFLUX_URL="http://localhost:8086"
-    else
-            export INFLUX_URL="http://s61103cnt72.sc.couchbase.com:8086"
-    fi
-
-    """
-    pass
-
+    remote_hosts_list = get_remote_hosts_list(RESOURCES_POOL_FILENAME)
+    setup_tunnel(
+        target_host="s61103cnt72.sc.couchbase.com",
+        target_port="8086",
+        remote_hosts_user=remote_user,
+        remote_hosts=remote_hosts_list,
+        remote_host_port="8086",
+    )
+    
 def set_influx_db_url():
     pass
 
