@@ -50,7 +50,7 @@ def main():
         cluster_config=env.cluster_config,
     )
 
-    run_sgload_perf_test(
+    run_sgload_perf_test_wrapper(
         cluster_config=env.cluster_config,
         remote_user=env.remote_user,
         sgload_num_readers=env.sgload_num_readers,
@@ -171,7 +171,7 @@ def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_ser
         cluster.reset(sync_gateway_config_file)
 
 
-def run_sgload_perf_test(cluster_config, remote_user, sgload_num_readers, sgload_num_writers, sgload_num_updaters, sgload_num_revs_per_doc, sgload_num_docs, sgload_num_channels, sgload_batch_size, sgload_writer_delay_ms, sgload_log_level):
+def run_sgload_perf_test_wrapper(cluster_config, remote_user, sgload_num_readers, sgload_num_writers, sgload_num_updaters, sgload_num_revs_per_doc, sgload_num_docs, sgload_num_channels, sgload_batch_size, sgload_writer_delay_ms, sgload_log_level):
 
     if "GRAFANA_DB" not in os.environ:
         raise Exception("Missing GRAFANA_DB env variable that is required to install telegraf")
