@@ -174,6 +174,13 @@ def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_ser
         skip_bucketcreation=False
     )
 
+    # Don't specify version number on a source build
+    if sg_deploy_type == "Source":
+        sync_gateway_conf.version_number = None
+    else:
+        # Likewise, don't specify commmit on a package build
+        sync_gateway_conf.commit = None
+
     if provision_or_reset == "Provision":
         print("provisioning cluster")
         provision_cluster(
