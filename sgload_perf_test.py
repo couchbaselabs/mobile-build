@@ -165,7 +165,7 @@ def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_ser
             couchbase_server_config=server_config,
             sync_gateway_config=sync_gateway_conf
         )
-    elif provision_or_reset == "Skip":
+    elif provision_or_reset == "Reset":
         print("resetting cluster")
         cluster = Cluster(config=cluster_config)
         cluster.reset(sync_gateway_config_file)
