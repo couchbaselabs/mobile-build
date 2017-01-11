@@ -8,44 +8,87 @@ import re
 from libraries.utilities.generate_clusters_from_pool import generate_clusters_from_pool
 from utilities.setup_ssh_tunnel import setup_tunnel
 from utilities.setup_ssh_tunnel import get_remote_hosts_list
+from libraries.provision.install_deps import install_deps
+from libraries.provision.provision_cluster import provision_cluster
+from libraries.provision.install_couchbase_server import CouchbaseServerConfig
+from libraries.provision.install_sync_gateway import SyncGatewayConfig
+from libraries.testkit.cluster import Cluster
+from testsuites.syncgateway.performance.run_sgload_perf_test import run_sgload_perf_test
 
 # A named tuple to hold all the environment variables (lightweight class without the boilerplate)
 ScriptEnv = collections.namedtuple(
     'ScriptEnv',
-    'remote_user pools_json',
+    'remote_user pools_json sg_deploy_type install_deps_flag cluster_config provision_or_reset couchbase_server_version sync_gateway_version sync_gateway_commit sync_gateway_config_file sgload_num_readers sgload_num_writers sgload_num_updaters sgload_num_revs_per_doc sgload_num_docs sgload_num_channels sgload_batch_size sgload_writer_delay_ms sgload_log_level',
 )
 
 RESOURCES_POOL_FILENAME="resources/pool.json"
 
 def main():
 
-    script_env = validate_environment()
+    env = validate_environment()
     
-    create_ansible_config(remote_user=script_env.remote_user)
+    create_ansible_config(env.remote_user)
 
-    write_resources_pool_json(pools_json=script_env.pools_json)
+    write_resources_pool_json(env.pools_json)
 
     generate_clusters_from_pool(RESOURCES_POOL_FILENAME)
     
-    maybe_setup_ssh_tunnel(script_env.remote_user)    
+    maybe_setup_ssh_tunnel(env.remote_user)    
 
-    set_influx_db_url()
+    maybe_deploy_github_keys(env.sg_deploy_type)
 
-    maybe_deploy_github_keys()
+    maybe_install_deps(env.install_deps_flag, env.cluster_config)
 
-    maybe_install_deps()
+    provision_or_reset_cluster(
+        provision_or_reset=env.provision_or_reset,
+        sg_deploy_type=env.sg_deploy_type,
+        couchbase_server_version=env.couchbase_server_version,
+        sync_gateway_version=env.sync_gateway_version,
+        sync_gateway_commit=env.sync_gateway_commit,
+        sync_gateway_config_file=env.sync_gateway_config_file,
+        cluster_config=env.cluster_config,
+        
+    )
 
-    maybe_provision_cluster()
-
-    run_sgload_perf_test()
+    run_sgload_perf_test(
+        cluster_config=env.cluster_config,
+        remote_user=env.remote_user,
+        sgload_num_readers=env.sgload_num_readers,
+        sgload_num_writers=env.sgload_num_writers,
+        sgload_num_updaters=env.sgload_num_updaters,
+        sgload_num_revs_per_doc=env.sgload_num_revs_per_doc,
+        sgload_num_docs=env.sgload_num_docs,
+        sgload_num_channels=env.sgload_num_channels,
+        sgload_batch_size=env.sgload_batch_size,
+        sgload_writer_delay_ms=env.sgload_writer_delay_ms,
+        sgload_log_level=env.sgload_log_level,
+    )
 
 def validate_environment():
     """
     Check for expected env variables
     """
+
     return ScriptEnv(
         remote_user=os.environ["REMOTE_USER"],
         pools_json=os.environ["POOLS_JSON"],
+        sg_deploy_type=os.environ["SG_DEPLOY_TYPE"],
+        install_deps_flag=os.environ["INSTALL_DEPS"],
+        cluster_config=os.environ["CLUSTER_CONFIG"],
+        provision_or_reset=os.environ["PROVISION_OR_RESET"],
+        couchbase_server_version=os.environ["COUCHBASE_SERVER_VERSION"],
+        sync_gateway_version=os.environ["SYNC_GATEWAY_VERSION"],
+        sync_gateway_commit=os.environ["SYNC_GATEWAY_COMMIT"],
+        sync_gateway_config_file=os.environ["SYNC_GATEWAY_CONFIG_FILE"],
+        sgload_num_readers=os.environ["SGLOAD_NUM_READERS"],
+        sgload_num_writers=os.environ["SGLOAD_NUM_WRITERS"],
+        sgload_num_updaters=os.environ["SGLOAD_NUM_UPDATERS"],
+        sgload_num_revs_per_doc=os.environ["SGLOAD_NUM_REVS_PER_DOC"],
+        sgload_num_docs=os.environ["SGLOAD_NUM_DOCS"],
+        sgload_num_channels=os.environ["SGLOAD_NUM_CHANNELS"],
+        sgload_batch_size=os.environ["SGLOAD_BATCH_SIZE"],
+        sgload_writer_delay_ms=os.environ["SGLOAD_WRITER_DELAY_MS"],
+        sgload_log_level=os.environ["SGLOAD_LOG_LEVEL"],
     )
 
 def create_ansible_config(remote_user):
@@ -75,11 +118,8 @@ def maybe_setup_ssh_tunnel(remote_user):
         remote_hosts=remote_hosts_list,
         remote_host_port="8086",
     )
-    
-def set_influx_db_url():
-    pass
 
-def maybe_deploy_github_keys():
+def maybe_deploy_github_keys(sg_deploy_type):
     """
     # Enable building private sync-gateway-accel repo by making sure that 
     # the VM's have the private key that is registered with github as a 
@@ -92,52 +132,87 @@ def maybe_deploy_github_keys():
     fi
 
     """
-    pass
+    if sg_deploy_type == "Source":
+        raise Exception("TODO: support deploying gh deploy keys")
 
-def maybe_install_deps():
-    """
-    # Install dependencies to the perf cluster
-    if [ "$INSTALL_DEPS" == "true" ]; then
-      python libraries/provision/install_deps.py
-    fi
 
-    """
-    pass
+def maybe_install_deps(install_deps_flag, cluster_config):
+    if install_deps_flag:
+        install_deps(cluster_config)
+        
+def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_server_version, sync_gateway_version, sync_gateway_commit, sync_gateway_config_file, cluster_config):
 
-def maybe_provision_cluster():
-    """
-    # Provision cluster
-    if [ "$PROVISION_OR_RESET" == "Provision" ]; then
-      echo "Provisioning cluster ..."
-      if [ "$SG_DEPLOY_TYPE" == "Package" ]; then
-        python libraries/provision/provision_cluster.py --server-version $COUCHBASE_SERVER_VERSION --sync-gateway-version $SYNC_GATEWAY_VERSION --sync-gateway-config-file $SYNC_GATEWAY_CONFIG_PATH
-      else
-        python libraries/provision/provision_cluster.py --server-version $COUCHBASE_SERVER_VERSION --sync-gateway-commit $SYNC_GATEWAY_COMMIT --sync-gateway-config-file $SYNC_GATEWAY_CONFIG_PATH
-      fi
-    else
-      echo "Resetting cluster ..."
-      python libraries/provision/reset_cluster.py --conf=$SYNC_GATEWAY_CONFIG_PATH
-    fi
+    server_config = CouchbaseServerConfig(
+        version=couchbase_server_version
+    )
 
-    if [ "$CB_COLLECT_INFO" == "true" ]; then
-      CB_COLLECT_INFO_PARAM="--cb-collect-info"
-    fi
+    version_number, build_number = split_sync_gateway_version(sync_gateway_version) 
 
-    """
-    pass
+    sync_gateway_conf = SyncGatewayConfig(
+        version_number=version_number,
+        build_number=build_number,
+        commit=sync_gateway_commit,
+        build_flags="",
+        config_path=sync_gateway_config_file,
+        skip_bucketcreation=False
+    )
 
-def run_sgload_perf_test():
-    """
-    if [ "$LOAD_GENERATOR" == "Gateload" ]; then
-            echo "Starting performance tests"
-            python testsuites/syncgateway/performance/run_gateload_perf_test.py --test-id 2 --number-pullers $GATELOAD_NUM_PULLERS --number-pushers $GATELOAD_NUM_PUSHERS $GATELOAD_CB_COLLECT_INFO_PARAM --doc-size $GATELOAD_DOC_SIZE --runtime-ms $GATELOAD_RUNTIME_MS --rampup-interval-ms $GATELOAD_RAMPUP_INTERVAL_MS
-            echo "Finished performance tests"  
-    else
-        python testsuites/syncgateway/performance/run_sgload_perf_test.py gateload --createreaders --createwriters --numreaders $SGLOAD_NUM_READERS --numwriters $SGLOAD_NUM_WRITERS --numupdaters $SGLOAD_NUM_UPDATERS --numrevsperdoc $SGLOAD_NUM_REVS_PER_DOC --numdocs $SGLOAD_NUM_DOCS --numchannels $SGLOAD_NUM_CHANNELS --batchsize $SGLOAD_BATCH_SIZE --statsdendpoint localhost:8125 --statsdenabled --expvarprogressenabled --writerdelayms $SGLOAD_WRITER_DELAY_MS --loglevel $SGLOAD_LOG_LEVEL
-    fi
+    if provision_or_reset == "Provision":
+        provision_cluster(
+            cluster_config=cluster_conf,
+            couchbase_server_config=server_config,
+            sync_gateway_config=sync_gateway_conf
+        )
+    else:
+        cluster = Cluster(config=cluster_conf)
+        cluster.reset(sync_gateway_config_file)
 
-    """
-    pass 
+
+def run_sgload_perf_test(cluster_config, remote_user, sgload_num_readers, sgload_num_writers, sgload_num_updaters, sgload_num_revs_per_doc, sgload_num_docs, sgload_num_channels, sgload_batch_size, sgload_writer_delay_ms, sgload_log_level):
+
+    if "GRAFANA_DB" not in os.environ:
+        raise Exception("Missing GRAFANA_DB env variable that is required to install telegraf")
+    
+    # Try to set INFLUX_URL env variable, not sure if this will even work .. 
+    if remote_user == "centos":
+        os.environ["INFLUX_URL"] = "http://localhost:8086"
+    else:
+         os.environ["INFLUX_URL"] = "http://s61103cnt72.sc.couchbase.com:8086"
+         
+    sgload_arg_list_main = [
+        'gateload',
+        '--createreaders',
+        '--createwriters',
+        '--numreaders',
+        sgload_num_readers,
+        '--numwriters',
+        sgload_num_writers,
+        '--numupdaters',
+        sgload_num_updaters,
+        '--numrevsperdoc',
+        sgload_num_revs_per_doc,
+        '--numdocs',
+        sgload_num_docs,
+        '--numchannels',
+        sgload_num_channels,
+        '--batchsize',
+        sgload_batch_size,
+        '--statsdendpoint',
+        'localhost:8125',
+        '--statsdenabled',
+        '--expvarprogressenabled',
+        '--writerdelayms',
+        sgload_writer_delay_ms,
+        '--loglevel',
+        sgload_log_level,
+    ]
+    
+    run_sgload_perf_test(
+        cluster_config,
+        sgload_arg_list_main,
+        False,
+    )
+
     
 if __name__ == "__main__":
     main()
