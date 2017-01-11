@@ -161,13 +161,13 @@ def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_ser
     if provision_or_reset == "Provision":
         print("provisioning cluster")
         provision_cluster(
-            cluster_config=cluster_conf,
+            cluster_config=cluster_config,
             couchbase_server_config=server_config,
             sync_gateway_config=sync_gateway_conf
         )
     else:
         print("resetting cluster")
-        cluster = Cluster(config=cluster_conf)
+        cluster = Cluster(config=cluster_config)
         cluster.reset(sync_gateway_config_file)
 
 
