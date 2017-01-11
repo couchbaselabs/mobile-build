@@ -47,7 +47,6 @@ def main():
         sync_gateway_commit=env.sync_gateway_commit,
         sync_gateway_config_file=env.sync_gateway_config_file,
         cluster_config=env.cluster_config,
-        
     )
 
     run_sgload_perf_test(
@@ -79,7 +78,7 @@ def validate_environment():
         couchbase_server_version=os.environ["COUCHBASE_SERVER_VERSION"],
         sync_gateway_version=os.environ["SYNC_GATEWAY_VERSION"],
         sync_gateway_commit=os.environ["SYNC_GATEWAY_COMMIT"],
-        sync_gateway_config_file=os.environ["SYNC_GATEWAY_CONFIG_FILE"],
+        sync_gateway_config_file=os.environ["SYNC_GATEWAY_CONFIG_PATH"],
         sgload_num_readers=os.environ["SGLOAD_NUM_READERS"],
         sgload_num_writers=os.environ["SGLOAD_NUM_WRITERS"],
         sgload_num_updaters=os.environ["SGLOAD_NUM_UPDATERS"],
