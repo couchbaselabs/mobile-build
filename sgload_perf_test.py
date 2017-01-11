@@ -137,6 +137,7 @@ def maybe_deploy_github_keys(sg_deploy_type):
 
 def maybe_install_deps(install_deps_flag, cluster_config):
     if install_deps_flag:
+        print("install_deps_flag: {}, installing deps", install_deps_flag)
         install_deps(cluster_config)
         
 def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_server_version, sync_gateway_version, sync_gateway_commit, sync_gateway_config_file, cluster_config):
@@ -157,12 +158,14 @@ def provision_or_reset_cluster(provision_or_reset, sg_deploy_type, couchbase_ser
     )
 
     if provision_or_reset == "Provision":
+        print("provisioning cluster")
         provision_cluster(
             cluster_config=cluster_conf,
             couchbase_server_config=server_config,
             sync_gateway_config=sync_gateway_conf
         )
     else:
+        print("resetting cluster")
         cluster = Cluster(config=cluster_conf)
         cluster.reset(sync_gateway_config_file)
 
