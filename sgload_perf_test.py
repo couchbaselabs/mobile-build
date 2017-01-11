@@ -10,6 +10,7 @@ from utilities.setup_ssh_tunnel import setup_tunnel
 from utilities.setup_ssh_tunnel import get_remote_hosts_list
 from libraries.provision.install_deps import install_deps
 from libraries.provision.provision_cluster import provision_cluster
+from libraries.provision.provision_cluster import split_sync_gateway_version
 from libraries.provision.install_couchbase_server import CouchbaseServerConfig
 from libraries.provision.install_sync_gateway import SyncGatewayConfig
 from libraries.testkit.cluster import Cluster
